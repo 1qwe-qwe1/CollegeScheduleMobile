@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.collegeschedule.data.dto.ScheduleByDateDto
+import com.example.collegeschedule.ui.components.GroupDropdown
+import com.example.collegeschedule.data.dto.GroupDto
 
 @Composable
 fun ScheduleList(data: List<ScheduleByDateDto>) {
