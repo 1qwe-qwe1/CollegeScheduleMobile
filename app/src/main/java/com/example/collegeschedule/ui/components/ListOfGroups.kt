@@ -80,35 +80,6 @@ fun GroupDropdown(
             }
         }
 
-        // Простой список групп под выпадающим меню
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 200.dp)
-                .padding(top = 8.dp)
-        ) {
-            items(filteredGroups) { group ->
-                Card(
-                    onClick = {
-                        onGroupSelected(group)
-                        searchText = group.groupName
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (group.groupId == selectedGroup?.groupId)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Text(
-                        text = group.groupName,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                }
-            }
-        }
+
     }
 }

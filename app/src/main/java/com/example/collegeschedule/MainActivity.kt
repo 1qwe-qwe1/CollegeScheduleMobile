@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,11 +44,7 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.collegeschedule.data.api.ScheduleApi
-import com.example.collegeschedule.data.repository.ScheduleRepository
-import com.example.collegeschedule.ui.schedule.ScheduleList
-import com.example.collegeschedule.ui.theme.CollegeScheduleTheme
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import com.example.collegeschedule.data.dto.GroupDto
 import com.example.collegeschedule.ui.theme.CollegeScheduleTheme
 import com.example.collegeschedule.ui.viewmodel.ScheduleViewModel
 import com.example.collegeschedule.utils.ScheduleScreen
@@ -71,6 +68,9 @@ fun CollegeScheduleApp() {
         mutableStateOf(AppDestinations.HOME)
     }
 
+    // ViewModel для управления состоянием
+    val scheduleViewModel: ScheduleViewModel = viewModel()
+
     NavigationSuiteScaffold(
         navigationSuiteItems = {
             AppDestinations.entries.forEach {
@@ -83,7 +83,13 @@ fun CollegeScheduleApp() {
                     },
                     label = { Text(it.label) },
                     selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    onClick = {
+                        currentDestination = it
+                        // При переходе на главную страницу, если есть избранная группа - переключаемся на неё
+                        if (it == AppDestinations.HOME) {
+                            scheduleViewModel.loadPreferences()
+                        }
+                    }
                 )
             }
         }
@@ -91,11 +97,17 @@ fun CollegeScheduleApp() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
                 AppDestinations.HOME -> {
-                    ScheduleScreen()
+                    ScheduleScreen(scheduleViewModel)
                 }
 
                 AppDestinations.FAVORITES -> {
                     FavoritesScreen(
+                        viewModel = scheduleViewModel,
+                        onGroupClick = { groupName ->
+                            // Переключаемся на главную вкладку и выбираем группу
+                            currentDestination = AppDestinations.HOME
+                            scheduleViewModel.selectGroupByName(groupName)
+                        },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -113,7 +125,8 @@ fun CollegeScheduleApp() {
 
 @Composable
 fun FavoritesScreen(
-    viewModel: ScheduleViewModel = viewModel(),
+    viewModel: ScheduleViewModel,
+    onGroupClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val favorites by viewModel.favoriteGroups.observeAsState(emptySet())
@@ -150,7 +163,15 @@ fun FavoritesScreen(
                 )
             }
         } else {
-            val favoriteGroupsList = groups.filter { it.groupName in favorites }
+            // Фильтруем группы только из избранного и сортируем:
+            // 1. Основная группа первая
+            // 2. Остальные в алфавитном порядке
+            val favoriteGroupsList = groups
+                .filter { it.groupName in favorites }
+                .sortedWith(
+                    compareByDescending<GroupDto> { it.groupName == mainGroup }
+                        .thenBy { it.groupName }
+                )
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -161,7 +182,7 @@ fun FavoritesScreen(
                         groupName = group.groupName,
                         isMainGroup = group.groupName == mainGroup,
                         onClick = {
-                            // переход к расписанию группы
+                            onGroupClick(group.groupName)
                         }
                     )
                 }
@@ -180,7 +201,13 @@ fun FavoriteGroupItem(
 ) {
     Card(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isMainGroup)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Row(
             modifier = Modifier
@@ -191,7 +218,9 @@ fun FavoriteGroupItem(
         ) {
             Text(
                 text = groupName,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = if (isMainGroup) FontWeight.Bold else FontWeight.Normal
+                )
             )
 
             Row(
