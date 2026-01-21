@@ -58,6 +58,14 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation(libs.androidx.compose.foundation)
 
+    // DataStore Preferences
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Для работы с DataStore в Compose
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation(libs.androidx.compose.remote.creation.core)
+    implementation(libs.androidx.compose.runtime.livedata)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

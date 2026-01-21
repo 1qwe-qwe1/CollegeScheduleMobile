@@ -5,59 +5,52 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.collegeschedule.data.dto.GroupDto
 import com.example.collegeschedule.data.dto.ScheduleByDateDto
 import com.example.collegeschedule.data.network.RetrofitInstance
 import com.example.collegeschedule.data.repository.ScheduleRepository
+import com.example.collegeschedule.ui.components.GroupDropdown
 import com.example.collegeschedule.ui.schedule.ScheduleList
+import com.example.collegeschedule.ui.viewmodel.ScheduleViewModel
 import kotlinx.coroutines.launch
 
+
 @Composable
-fun ScheduleScreen() {
-    val repository = remember { ScheduleRepository(RetrofitInstance.api) }
+fun ScheduleScreen(
+    viewModel: ScheduleViewModel = viewModel()
+) {
     val coroutineScope = rememberCoroutineScope()
 
-    var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
-    var selectedGroup by remember { mutableStateOf<GroupDto?>(null) }
-    var schedule by remember { mutableStateOf<List<ScheduleByDateDto>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val groups by viewModel.groups.observeAsState(emptyList())
+    val selectedGroup by viewModel.selectedGroup.observeAsState()
+    val schedule by viewModel.schedule.observeAsState(emptyList())
+    val isLoading by viewModel.isLoading.observeAsState(false)
+    val error by viewModel.error.observeAsState()
+
+    val favorites by viewModel.favoriteGroups.observeAsState(emptySet())
+    val mainGroup by viewModel.mainGroup.observeAsState()
 
     LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            try {
-                groups = repository.loadAllGroups()
-                selectedGroup = groups.find { it.groupName == "ИС-12" } ?:
-                        groups.firstOrNull()
-            } catch (e: Exception) {
-                error = "Ошибка загрузки групп: ${e.message}"
-            }
-        }
-    }
-
-    LaunchedEffect(selectedGroup) {
-        selectedGroup?.let { group ->
-            loading = true
-            error = null
-            try {
-                schedule = repository.loadSchedule(group.groupName)
-            } catch (e: Exception) {
-                error = "Ошибка загрузки расписания: ${e.message}"
-                schedule = emptyList()
-            } finally {
-                loading = false
-            }
-        }
+        viewModel.loadAllGroups()
+        viewModel.loadPreferences()
     }
 
     Column(
@@ -65,35 +58,47 @@ fun ScheduleScreen() {
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // Панель выбора группы
         if (groups.isNotEmpty()) {
             GroupDropdown(
                 groups = groups,
                 selectedGroup = selectedGroup,
                 onGroupSelected = { group ->
-                    selectedGroup = group
-                }
+                    viewModel.selectGroup(group)
+                },
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        if (selectedGroup != null) {
-            Text(
-                text = "Группа: ${selectedGroup!!.groupName}",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                textAlign = TextAlign.Center
+        // Заголовок с названием группы и кнопками избранного/основной
+        selectedGroup?.let { group ->
+            GroupHeader(
+                groupName = group.groupName,
+                isFavorite = favorites.contains(group.groupName),
+                isMainGroup = mainGroup == group.groupName,
+                onFavoriteClick = {
+                    coroutineScope.launch {
+                        viewModel.toggleFavoriteGroup(group.groupName)
+                    }
+                },
+                onMainGroupClick = {
+                    coroutineScope.launch {
+                        if (mainGroup == group.groupName) {
+                            viewModel.clearMainGroup()
+                        } else {
+                            viewModel.setMainGroup(group.groupName)
+                        }
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
         }
 
         when {
-            loading -> {
+            isLoading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -112,17 +117,7 @@ fun ScheduleScreen() {
                         Button(
                             onClick = {
                                 selectedGroup?.let {
-                                    coroutineScope.launch {
-                                        loading = true
-                                        try {
-                                            schedule = repository.loadSchedule(it.groupName)
-                                            error = null
-                                        } catch (e: Exception) {
-                                            error = e.message
-                                        } finally {
-                                            loading = false
-                                        }
-                                    }
+                                    viewModel.loadScheduleForGroup(it.groupName)
                                 }
                             }
                         ) {
@@ -146,72 +141,53 @@ fun ScheduleScreen() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GroupDropdown(
-    groups: List<GroupDto>,
-    selectedGroup: GroupDto?,
-    onGroupSelected: (GroupDto) -> Unit,
+fun GroupHeader(
+    groupName: String,
+    isFavorite: Boolean,
+    isMainGroup: Boolean,
+    onFavoriteClick: () -> Unit,
+    onMainGroupClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var searchText by remember { mutableStateOf(selectedGroup?.groupName ?: "") }
-    var isExpanded by remember { mutableStateOf(false) }
-
-    val filteredGroups = remember(searchText, groups) {
-        if (searchText.isBlank()) groups
-        else groups.filter { it.groupName.contains(searchText, ignoreCase = true) }
-    }
-
-    Column(modifier = modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(
-            text = "Выберите группу:",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
+            text = "Группа: $groupName",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Start
         )
 
-        ExposedDropdownMenuBox(
-            expanded = isExpanded,
-            onExpandedChange = { isExpanded = it }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End,
+            modifier = Modifier.padding(start = 8.dp)
         ) {
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = {
-                    searchText = it
-                    isExpanded = true
-                },
-                label = { Text("Введите название группы") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { isExpanded = true }),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            ExposedDropdownMenu(
-                expanded = isExpanded,
-                onDismissRequest = { isExpanded = false },
-                modifier = Modifier.heightIn(max = 300.dp)
+            IconButton(
+                onClick = onFavoriteClick
             ) {
-                if (filteredGroups.isEmpty()) {
-                    DropdownMenuItem(
-                        text = { Text("Группа не найдена") },
-                        onClick = { isExpanded = false }
-                    )
-                } else {
-                    filteredGroups.forEach { group ->
-                        DropdownMenuItem(
-                            text = { Text(group.groupName) },
-                            onClick = {
-                                onGroupSelected(group)
-                                searchText = group.groupName
-                                isExpanded = false
-                            }
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Удалить из избранного" else "Добавить в избранное",
+                    tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurface
+                )
             }
 
-
+            IconButton(
+                onClick = onMainGroupClick
+            ) {
+                Icon(
+                    imageVector = if (isMainGroup) Icons.Default.Star else Icons.Outlined.Star,
+                    contentDescription = if (isMainGroup) "Убрать основную группу" else "Сделать основной",
+                    tint = if (isMainGroup) Color.Yellow else MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
