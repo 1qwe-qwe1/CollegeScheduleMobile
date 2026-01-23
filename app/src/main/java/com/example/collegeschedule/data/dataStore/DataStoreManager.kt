@@ -18,16 +18,6 @@ class AppPreferences(private val context: Context) {
         private val MAIN_GROUP_KEY = stringPreferencesKey("main_group")
     }
 
-    val favoriteGroups: Flow<Set<String>> = context.dataStore.data
-        .map { preferences ->
-            preferences[FAVORITE_GROUPS_KEY] ?: emptySet()
-        }
-
-    val mainGroup: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[MAIN_GROUP_KEY]
-        }
-
     // Добавить/удалить группу из избранного
     suspend fun toggleFavoriteGroup(groupName: String) {
         context.dataStore.edit { preferences ->
@@ -41,28 +31,23 @@ class AppPreferences(private val context: Context) {
         }
     }
 
-    // Установить основную группу (автоматически добавляет в избранные)
     suspend fun setMainGroup(groupName: String) {
         context.dataStore.edit { preferences ->
-            // Автоматически добавляем в избранные
             val currentFavorites = preferences[FAVORITE_GROUPS_KEY] ?: emptySet()
             if (!currentFavorites.contains(groupName)) {
                 preferences[FAVORITE_GROUPS_KEY] = currentFavorites + groupName
             }
 
-            // Устанавливаем как основную
             preferences[MAIN_GROUP_KEY] = groupName
         }
     }
 
-    // Очистить основную группу
     suspend fun clearMainGroup() {
         context.dataStore.edit { preferences ->
             preferences.remove(MAIN_GROUP_KEY)
         }
     }
 
-    // Получить все настройки сразу
     suspend fun getPreferences(): PreferencesData {
         val favorites = context.dataStore.data.map { it[FAVORITE_GROUPS_KEY] }.first() ?: emptySet()
         val mainGroup = context.dataStore.data.map { it[MAIN_GROUP_KEY] }.first()

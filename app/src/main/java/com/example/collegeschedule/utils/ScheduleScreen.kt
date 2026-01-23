@@ -38,7 +38,6 @@ fun ScheduleScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
 
-    // Состояния из ViewModel
     val groups by viewModel.groups.observeAsState(emptyList())
     val selectedGroup by viewModel.selectedGroup.observeAsState()
     val schedule by viewModel.schedule.observeAsState(emptyList())
@@ -48,7 +47,6 @@ fun ScheduleScreen(
     val favorites by viewModel.favoriteGroups.observeAsState(emptySet())
     val mainGroup by viewModel.mainGroup.observeAsState()
 
-    // Загрузка данных при первом открытии
     LaunchedEffect(Unit) {
         viewModel.loadAllGroups()
         viewModel.loadPreferences()
@@ -59,7 +57,6 @@ fun ScheduleScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Панель выбора группы (используем ваш компонент)
         if (groups.isNotEmpty()) {
             GroupDropdown(
                 groups = groups,
@@ -73,7 +70,6 @@ fun ScheduleScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Заголовок с названием группы и кнопками избранного/основной
         selectedGroup?.let { group ->
             GroupHeader(
                 groupName = group.groupName,
@@ -98,7 +94,6 @@ fun ScheduleScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Отображение состояния загрузки/ошибки/данных
         when {
             isLoading -> {
                 Box(
@@ -157,7 +152,6 @@ fun GroupHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Название группы
         Text(
             text = "Группа: $groupName",
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -167,13 +161,11 @@ fun GroupHeader(
             textAlign = TextAlign.Start
         )
 
-        // Кнопки избранного и основной группы
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.End,
             modifier = Modifier.padding(start = 8.dp)
         ) {
-            // Кнопка избранного
             IconButton(
                 onClick = onFavoriteClick,
                 enabled = !isMainGroup || isFavorite // Нельзя удалить из избранного если это основная группа
@@ -185,7 +177,6 @@ fun GroupHeader(
                 )
             }
 
-            // Кнопка основной группы
             IconButton(
                 onClick = onMainGroupClick
             ) {

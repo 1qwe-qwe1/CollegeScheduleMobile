@@ -65,6 +65,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation(libs.androidx.compose.remote.creation.core)
     implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.room.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

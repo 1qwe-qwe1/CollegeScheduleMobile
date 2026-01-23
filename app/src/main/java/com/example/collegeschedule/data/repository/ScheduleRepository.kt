@@ -9,7 +9,7 @@ class ScheduleRepository(private val api: ScheduleApi) {
         return api.getSchedule(groupName = group, start = "2026-01-12", end = "2026-01-17")
     }
 
-    suspend fun loadAllGroups(): List<GroupDto> { // ← НОВЫЙ МЕТОД
+    suspend fun loadAllGroups(): List<GroupDto> {
         return api.getAllGroups()
     }
 }

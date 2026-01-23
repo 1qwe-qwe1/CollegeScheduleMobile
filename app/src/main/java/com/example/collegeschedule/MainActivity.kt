@@ -68,7 +68,6 @@ fun CollegeScheduleApp() {
         mutableStateOf(AppDestinations.HOME)
     }
 
-    // ViewModel для управления состоянием
     val scheduleViewModel: ScheduleViewModel = viewModel()
 
     NavigationSuiteScaffold(
@@ -85,7 +84,6 @@ fun CollegeScheduleApp() {
                     selected = it == currentDestination,
                     onClick = {
                         currentDestination = it
-                        // При переходе на главную страницу, если есть избранная группа - переключаемся на неё
                         if (it == AppDestinations.HOME) {
                             scheduleViewModel.loadPreferences()
                         }
@@ -104,7 +102,6 @@ fun CollegeScheduleApp() {
                     FavoritesScreen(
                         viewModel = scheduleViewModel,
                         onGroupClick = { groupName ->
-                            // Переключаемся на главную вкладку и выбираем группу
                             currentDestination = AppDestinations.HOME
                             scheduleViewModel.selectGroupByName(groupName)
                         },
@@ -163,9 +160,6 @@ fun FavoritesScreen(
                 )
             }
         } else {
-            // Фильтруем группы только из избранного и сортируем:
-            // 1. Основная группа первая
-            // 2. Остальные в алфавитном порядке
             val favoriteGroupsList = groups
                 .filter { it.groupName in favorites }
                 .sortedWith(
